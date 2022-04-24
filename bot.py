@@ -14,22 +14,12 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot('5397776041:AAF0n0GYOqe0rLIL5G4tLbX0f2RDbiQ1xmU')
 dp = Dispatcher(bot=bot)
 
-
-def auth(func):
-    async def wrapper(message):
-        if message.chat.id != 368553201:
-            return await message.answer(f'You dont have rules!')
-        return await func(message)
-
-    return wrapper
-
-
 user_data = defaultdict(list)
 
 get_keyboard = GetKeyboard()
 
 
-async def update_num_text(message: types.Message, product_ls: str):
+async def update_bag(message: types.Message, product_ls: str):
     db = DBConnect()
     product = db.take_product_info(product_ls)
     user_data[message.chat.id].append(product[1])
@@ -38,44 +28,124 @@ async def update_num_text(message: types.Message, product_ls: str):
                          reply_markup=get_keyboard.menu_keyboard(message.chat.id, 1, product[3]))
 
 
-
 @dp.message_handler(Text(startswith=['В кошику']))
 async def bag(message: types.Message):
     bag = order.get_total(user_data.get(message.chat.id, 0))
-
-
     await bot.send_message(message.chat.id, f'Ваше замовлення:\n {bag}', reply_markup=get_keyboard.create_order())
 
+
+@dp.callback_query_handler(Text(startswith=["pass"]))
+async def pass_message(call: types.CallbackQuery):
+    message_info = "Кошик вже порожній:("
+    await call.message.answer(emojize(message_info, language='alias'))
+    await call.answer()
 
 @dp.callback_query_handler(Text(startswith=["enter", "cancel"]))
 async def create_order(call: types.CallbackQuery):
     if call.data == "enter":
-
-        text = emojize('Замовлення прийняте:white_check_mark:\nОчікуйте повідомлення про готовність:speech_balloon:', language='alias')
-        order.db_create_order(order.generate_number(), call.from_user.id, user_data.get(call.from_user.id, 0))
-        #db.create_order(order.generate_number(), call.from_user.id, user_data.get(call.from_user.id, 0))
+        order_number = order.generate_number()
+        message_info = f'Ваш номер замовлення №{order_number}\nБажаєте ще щось?'
+        text = emojize(f'Ваше замовлення №{order_number} прийняте:white_check_mark:\nОчікуйте повідомлення про готовність:speech_balloon:', language='alias')
+        order.db_create_order(order_number, call.from_user.id, user_data.get(call.from_user.id, 0))
         get_keyboard.clear_bag(call.from_user.id)
         user_data[call.from_user.id].clear()
     else:
         text = emojize("Замовлення скасоване:x:", language='alias')
         get_keyboard.clear_bag(call.from_user.id)
         user_data[call.from_user.id].clear()
+        message_info = 'Замовлення скасоване:x:'
     await bot.answer_callback_query(
         call.id,
         text=text, show_alert=True)
-    await call.message.answer('Бажаєте ще щось?', reply_markup=get_keyboard.menu_keyboard(call.from_user.id))
+    await call.message.edit_reply_markup(reply_markup=get_keyboard.hide_bag_buttons())
+    await call.message.answer(emojize(message_info, language='alias'), reply_markup=get_keyboard.menu_keyboard(call.from_user.id))
     await call.answer()
 
 
 @dp.callback_query_handler(Text(startswith=["hot_", "ice_", "taste_"]))
 async def callbacks_num(call: types.CallbackQuery):
-    print(call.data)
-    await update_num_text(call.message, call.data)
+    #print(call.data)
+    await update_bag(call.message, call.data)
+    await call.answer()
+
+
+
+#зробити адмін панель з статистикою прийманням замовлень і відправлення замовлень користувачу
+#або в користувача зробити міні чекаут з готовністю замовлення або в полі про замовлення має бути статус
+@dp.message_handler(commands=['admin'])
+async def admin_menu(message: types.message):
+    db = DBConnect()
+    if db.admin(message.chat.id):
+        caption = 'Вітаю в панелі адміністратора!'
+        await bot.send_message(message.chat.id, caption, reply_markup=get_keyboard.admin_keyboard())
+    else:
+        pass
+
+#загорнути в окрему функцію перемістити в інший файл
+@dp.message_handler(Text(startswith=['Нові замовлення>']))
+async def admin_orders(message: types.Message):
+    db = DBConnect()
+    all_new_orders = db.take_new_orders()
+    if len(all_new_orders) == 0:
+        await message.answer('Нових замовлень немає')
+    else:
+        for el in all_new_orders:
+            order = []
+            order_price = []
+            for name, price, _, number in db.take_order_info(el):
+                order_price.append(int(price))
+                order.append(f"Товар: {name} (1шт) - {price} грн.")
+            order.append(f'Загальна сумма замовлення {sum(order_price)}')
+            order.append(f'Номер замовлення клієнта {el}')
+            await message.answer('\n'.join(order), reply_markup=get_keyboard.admin_orders())
+
+
+
+@dp.message_handler(Text(startswith=['Статистика за день']))
+async def admin_statik(message: types.Message):
+    db = DBConnect()
+    all_new_orders = db.take_statistics()
+    all_day_cost = []
+    if len(all_new_orders) == 0:
+        await message.answer('Сьогодні замовлень немає')
+    else:
+        for el in all_new_orders:
+            order = []
+            order_price = []
+            for name, price, _, number in db.take_order_info(el):
+                order_price.append(int(price))
+                order.append(f"Товар: {name} (1шт) - {price} грн.")
+            order.append(f'Загальна сумма замовлення {sum(order_price)}')
+            order.append(f'Номер замовлення клієнта {el}')
+            all_day_cost.append(sum(order_price))
+            await message.answer('\n'.join(order))
+        await message.answer(f'\nЗагальна виручка за сьогодні: {sum(all_day_cost)} грн.')
+
+
+@dp.callback_query_handler(Text(startswith=["confirm", "delete"]))
+async def admin_order_status(call: types.CallbackQuery):
+    db = DBConnect()
+    order_number = int(call.message.text[len(call.message.text)-12:])
+    if call.data == "confirm":
+        db.edit_status(order_number, "confirm")
+        user = db.take_user_id(order_number)
+        await bot.send_message(user, f'Ваше замовлення №{order_number} вже готове!')
+        # message_info = f'Ваш номер замовлення №{order_number}\nБажаєте ще щось?'
+        # text = emojize(f'Ваше замовлення №{order_number} прийняте:white_check_mark:\nОчікуйте повідомлення про готовність:speech_balloon:', language='alias')
+        # order.db_create_order(order_number, call.from_user.id, user_data.get(call.from_user.id, 0))
+        # get_keyboard.clear_bag(call.from_user.id)
+        # user_data[call.from_user.id].clear()
+    else:
+        db.edit_status(order_number, "cancel")
+    await call.message.edit_reply_markup(reply_markup=get_keyboard.hide_bag_buttons())
+    # await call.message.answer(emojize(message_info, language='alias'), reply_markup=get_keyboard.menu_keyboard(call.from_user.id))
     await call.answer()
 
 
 @dp.message_handler(commands=['start'])
 async def start(message: types.message):
+    db = DBConnect()
+    db.create_customers(message.from_user)
     caption = emojize(
         'Вас вітає Cafe YumYum :heart: \nОберіть потрібний пункт меню:mag_right:\nСподіваємся Вам в нас сподобається, бажаєм гарно провести час!:blush:',
         language='alias')
@@ -88,9 +158,21 @@ async def back_main_menu(message: types.Message):
     await start(message)
 
 
+
 @dp.message_handler(Text(startswith=['Про нас']))
 async def about(message: types.Message):
     await message.answer("Cafe YumYum\nАдреса: м.Київ\nКонтакти для звязку: test@test")
+
+#на доробці
+# @dp.message_handler(Text(startswith=['Залишити відгук']))
+# async def about(message: types.Message):
+#     @dp.message_handler()
+#     async def echo_message(message: types.Message):
+#         db = DBConnect()
+#         print(message.chat.id)
+#         print(message.text)
+#         db.creare_reviews(message.chat.id, message.text)
+#         await message.answer("Дякуєм за Ваш відгук!")
 
 
 @dp.message_handler(Text(startswith=['Меню']))
