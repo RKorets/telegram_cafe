@@ -72,3 +72,31 @@ class GetKeyboard:
         self.keyboard = types.InlineKeyboardMarkup(row_width=2)
         self.keyboard.add(*self.buttons)
         return self.keyboard
+
+    def hide_bag_buttons(self):
+        self.buttons = [
+            types.InlineKeyboardButton(text=emojize(":ok_hand:", language='alias'),
+                                       callback_data="pass")
+        ]
+        self.keyboard = types.InlineKeyboardMarkup(row_width=1)
+        self.keyboard.add(*self.buttons)
+        return self.keyboard
+
+    def admin_keyboard(self):
+        self.buttons = [emojize('Нові замовлення>:bell:', language='alias'),
+                        emojize('Статистика за день:bar_chart:', language='alias')]
+        self.keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+        self.keyboard.add(*self.buttons)
+        return self.keyboard
+
+    def admin_orders(self):
+        button = []
+        # for product_name in self.db.take_new_orders():
+        button = [
+                types.InlineKeyboardButton(text=emojize("Виконано:white_check_mark:", language='alias'),
+                                           callback_data="confirm"),
+                types.InlineKeyboardButton(text=emojize("Скасувати:x:", language='alias'), callback_data="delete")
+            ]
+        keyboard = types.InlineKeyboardMarkup(row_width=2)
+        keyboard.add(*button)
+        return keyboard
