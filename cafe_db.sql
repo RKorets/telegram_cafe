@@ -17,21 +17,32 @@ CREATE TABLE `Product` (
 
 
 CREATE TABLE `Orders` (
-  `OrderID` int(25) NOT NULL,
+  `OrderID` varchar(35) NOT NULL,
   `CustomerID` int(15) NOT NULL,
   `OrderDate` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `OrderStatus` varchar(35) NOT NULL DEFAULT 'new',
   PRIMARY KEY (`OrderID`),
   FOREIGN KEY (`CustomerID`) REFERENCES `Customers` (`CustomerID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `ProductInOrder` (
   `OrderDetailID` int NOT NULL AUTO_INCREMENT,
-  `OrderID` int(25) NOT NULL,
+  `OrderID` varchar(35) NOT NULL,
   `ProductID` int(15) NOT NULL,
   PRIMARY KEY (`OrderDetailID`),
   FOREIGN KEY (`OrderID`) REFERENCES `Orders` (`OrderID`),
   FOREIGN KEY (`ProductID`) REFERENCES `Product` (`ProductID`)
 )ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `Reviews` (
+    `ReviewsID` INT NOT NULL AUTO_INCREMENT ,
+    `CustomerID` INT NOT NULL ,
+    `ReviewsText` TEXT NOT NULL ,
+    FOREIGN KEY (`CustomerID`) REFERENCES `Customers` (`CustomerID`),
+    PRIMARY KEY (`ReviewsID`)) ENGINE = InnoDB;
+
+CREATE TABLE `Admin` ( `id` INT NOT NULL AUTO_INCREMENT , `FullName` VARCHAR(45) NOT NULL , `TelegramID` INT NOT NULL , `PhoneNumber` VARCHAR(45) NOT NULL , PRIMARY KEY (`id`)) ENGINE = InnoDB;
+
 
 
 
