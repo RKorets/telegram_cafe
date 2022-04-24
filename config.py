@@ -1,4 +1,4 @@
 host = "localhost"
 user = "root"
 password = "root"
-db_name = "Test"
+db_name = "PythonTest"
