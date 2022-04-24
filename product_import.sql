@@ -1,0 +1,18 @@
+INSERT INTO `Product` (`ProductID`, `ProductName`,`ProductLS`,`ProductPrice`) VALUES
+(100001, 'Гарячий шоколад', 'hot_chook', 25),
+(100002, 'Чай чорний', 'hot_black_tea', 21),
+(100003, 'Капучіно', 'hot_cap', 35),
+(100004, 'Латте', 'hot_late', 32),
+(100005, '3 в 1', 'hot_3in1', 10),
+(100006, 'Американо', 'hot_americano', 22),
+(100007, 'Какао', 'hot_cacao', 30),
+(200001, 'Айс латте', 'ice_late', 29),
+(200002, 'Сік Sandora', 'ice_juice', 32),
+(200003, 'Лимонад', 'ice_lemon', 42),
+(200004, 'Вода', 'ice_water', 11),
+(200005, 'Coca Cola', 'ice_cola', 20),
+(300001, 'Медовик', 'taste_honey', 45),
+(300002, 'Наполеон', 'taste_napoleon', 48),
+(300003, 'Морозиво', 'taste_ice_cream', 25),
+(300004, 'Піроженко', 'taste_pirojeno', 23),
+(300005, 'Сінабон', 'taste_cinabon', 49);
