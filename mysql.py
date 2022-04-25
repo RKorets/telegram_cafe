@@ -168,7 +168,7 @@ class DBConnect:
         self.product_info = []
         with self.connect().cursor() as cursor:
             self.import_product = "SELECT OrderID FROM Orders " \
-                                     f"WHERE DATEDIFF(OrderDate, CURRENT_TIMESTAMP) = 0"
+                                     f"WHERE DATEDIFF(OrderDate, CURRENT_TIMESTAMP) = 0 AND OrderStatus = 'confirm'"
             cursor.execute(self.import_product)
             for el in cursor:
                     self.product_info.append(el["OrderID"])
@@ -178,4 +178,4 @@ class DBConnect:
 
 if __name__ == "__main__":
     d = DBConnect()
-    
+    print(d.people())
