@@ -1,22 +1,30 @@
+from aiogram import executor, types, Dispatcher, Bot
+from aiogram.dispatcher.filters import Text
+import aiogram.utils.markdown as md
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from collections import defaultdict
+from keyboard_menu import GetKeyboard
+from mysql import DBConnect
+from emoji import emojize
+import order
 import logging
 import random
 import time
-from aiogram import executor, types, Dispatcher, Bot
-from aiogram.dispatcher.filters import Text
-from mysql import DBConnect
-from emoji import emojize
-from collections import defaultdict
-from keyboard_menu import GetKeyboard
-import order
 
 logging.basicConfig(level=logging.INFO)
-
+storage = MemoryStorage()
 bot = Bot('5397776041:AAF0n0GYOqe0rLIL5G4tLbX0f2RDbiQ1xmU')
-dp = Dispatcher(bot=bot)
+dp = Dispatcher(bot=bot, storage=storage)
 
 user_data = defaultdict(list)
 
 get_keyboard = GetKeyboard()
+
+
+class Form(StatesGroup):
+      reviews = State()
 
 
 async def update_bag(message: types.Message, product_ls: str):
@@ -40,6 +48,7 @@ async def pass_message(call: types.CallbackQuery):
     await call.message.answer(emojize(message_info, language='alias'))
     await call.answer()
 
+
 @dp.callback_query_handler(Text(startswith=["enter", "cancel"]))
 async def create_order(call: types.CallbackQuery):
     if call.data == "enter":
@@ -54,9 +63,7 @@ async def create_order(call: types.CallbackQuery):
         get_keyboard.clear_bag(call.from_user.id)
         user_data[call.from_user.id].clear()
         message_info = 'Замовлення скасоване:x:'
-    await bot.answer_callback_query(
-        call.id,
-        text=text, show_alert=True)
+    await bot.answer_callback_query(call.id, text=text, show_alert=True)
     await call.message.edit_reply_markup(reply_markup=get_keyboard.hide_bag_buttons())
     await call.message.answer(emojize(message_info, language='alias'), reply_markup=get_keyboard.menu_keyboard(call.from_user.id))
     await call.answer()
@@ -64,14 +71,10 @@ async def create_order(call: types.CallbackQuery):
 
 @dp.callback_query_handler(Text(startswith=["hot_", "ice_", "taste_"]))
 async def callbacks_num(call: types.CallbackQuery):
-    #print(call.data)
     await update_bag(call.message, call.data)
     await call.answer()
 
 
-
-#зробити адмін панель з статистикою прийманням замовлень і відправлення замовлень користувачу
-#або в користувача зробити міні чекаут з готовністю замовлення або в полі про замовлення має бути статус
 @dp.message_handler(commands=['admin'])
 async def admin_menu(message: types.message):
     db = DBConnect()
@@ -81,7 +84,7 @@ async def admin_menu(message: types.message):
     else:
         pass
 
-#загорнути в окрему функцію перемістити в інший файл
+
 @dp.message_handler(Text(startswith=['Нові замовлення>']))
 async def admin_orders(message: types.Message):
     db = DBConnect()
@@ -100,9 +103,8 @@ async def admin_orders(message: types.Message):
             await message.answer('\n'.join(order), reply_markup=get_keyboard.admin_orders())
 
 
-
 @dp.message_handler(Text(startswith=['Статистика за день']))
-async def admin_statik(message: types.Message):
+async def admin_statistic(message: types.Message):
     db = DBConnect()
     all_new_orders = db.take_statistics()
     all_day_cost = []
@@ -130,15 +132,9 @@ async def admin_order_status(call: types.CallbackQuery):
         db.edit_status(order_number, "confirm")
         user = db.take_user_id(order_number)
         await bot.send_message(user, f'Ваше замовлення №{order_number} вже готове!')
-        # message_info = f'Ваш номер замовлення №{order_number}\nБажаєте ще щось?'
-        # text = emojize(f'Ваше замовлення №{order_number} прийняте:white_check_mark:\nОчікуйте повідомлення про готовність:speech_balloon:', language='alias')
-        # order.db_create_order(order_number, call.from_user.id, user_data.get(call.from_user.id, 0))
-        # get_keyboard.clear_bag(call.from_user.id)
-        # user_data[call.from_user.id].clear()
     else:
         db.edit_status(order_number, "cancel")
     await call.message.edit_reply_markup(reply_markup=get_keyboard.hide_bag_buttons())
-    # await call.message.answer(emojize(message_info, language='alias'), reply_markup=get_keyboard.menu_keyboard(call.from_user.id))
     await call.answer()
 
 
@@ -158,55 +154,54 @@ async def back_main_menu(message: types.Message):
     await start(message)
 
 
-
 @dp.message_handler(Text(startswith=['Про нас']))
 async def about(message: types.Message):
     await message.answer("Cafe YumYum\nАдреса: м.Київ\nКонтакти для звязку: test@test")
 
-#на доробці
-# @dp.message_handler(Text(startswith=['Залишити відгук']))
-# async def about(message: types.Message):
-#     @dp.message_handler()
-#     async def echo_message(message: types.Message):
-#         db = DBConnect()
-#         print(message.chat.id)
-#         print(message.text)
-#         db.creare_reviews(message.chat.id, message.text)
-#         await message.answer("Дякуєм за Ваш відгук!")
+
+@dp.message_handler(Text(startswith=['Залишити відгук']))
+async def about(message: types.Message):
+    await Form.reviews.set()
+    await message.answer("Напишіть Ваш відгук:")
+
+
+@dp.message_handler(state=Form.reviews)
+async def process_name(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['reviews'] = message.text
+    db = DBConnect()
+    db.create_reviews(message.chat.id, md.text(data['reviews']))
+    await message.reply("Дякуєм за Ваш відгук!")
+    await state.finish()
 
 
 @dp.message_handler(Text(startswith=['Меню']))
 async def main_menu(message: types.Message):
     caption = 'Переходь до потрібного пункту меню та замовляй смачненьке!)\n Коли обереш потрібне тисни на кошик'
-    await bot.send_photo(message.chat.id, caption=caption, photo=open('images/cafe_logo.png', 'rb'),
+    await bot.send_photo(message.chat.id, caption=caption, photo=open('images/main_menu.jpg', 'rb'),
                          reply_markup=get_keyboard.menu_keyboard(message.chat.id))
 
 
 @dp.message_handler(Text(startswith=['Гарячі напої']))
 async def menu_hot(message: types.Message):
-    caption = 'Обирай що до смаку'
-    await bot.send_photo(message.chat.id, caption=caption, photo=open('images/cafe_logo.png', 'rb'),
+    caption = emojize('Обирай що до смаку:coffee:', language='alias')
+    await bot.send_photo(message.chat.id, caption=caption, photo=open('images/hot_menu.jpg', 'rb'),
                          reply_markup=get_keyboard.hot_buttons())
 
 
 @dp.message_handler(Text(startswith=['Холодні напої']))
 async def menu_ice(message: types.Message):
-    caption = 'Обирай що до смаку'
-    await bot.send_photo(message.chat.id, caption=caption, photo=open('images/cafe_logo.png', 'rb'),
+    caption = emojize('Обирай що до смаку:tropical_drink:', language='alias')
+    await bot.send_photo(message.chat.id, caption=caption, photo=open('images/ice_menu.jpg', 'rb'),
                          reply_markup=get_keyboard.ice_buttons())
 
 
 @dp.message_handler(Text(startswith=['Десерти']))
 async def menu_taste(message: types.Message):
-    caption = 'Обирай що до смаку'
-    await bot.send_photo(message.chat.id, caption=caption, photo=open('images/cafe_logo.png', 'rb'),
+    caption = emojize('Обирай що до смаку:cake:', language='alias')
+    await bot.send_photo(message.chat.id, caption=caption, photo=open('images/taste_menu.jpg', 'rb'),
                          reply_markup=get_keyboard.taste_buttons())
 
-
-
-
-# bot.send_message(message.chat.id, f'Hi {message.text}')
-# message.chat["first_name"]
 
 if __name__ == "__main__":
     executor.start_polling(dp)
