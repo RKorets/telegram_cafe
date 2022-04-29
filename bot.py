@@ -162,7 +162,8 @@ async def about(message: types.Message):
 @dp.message_handler(Text(startswith=['Залишити відгук']))
 async def about(message: types.Message):
     await Form.reviews.set()
-    await message.answer("Напишіть Ваш відгук:")
+    markup = types.ReplyKeyboardRemove()
+    await message.answer("Напишіть Ваш відгук:", reply_markup=markup)
 
 
 @dp.message_handler(state=Form.reviews)
@@ -171,7 +172,7 @@ async def process_name(message: types.Message, state: FSMContext):
         data['reviews'] = message.text
     db = DBConnect()
     db.create_reviews(message.chat.id, md.text(data['reviews']))
-    await message.reply("Дякуєм за Ваш відгук!")
+    await message.reply("Дякуєм за Ваш відгук!", reply_markup=get_keyboard.main_menu_keyboard())
     await state.finish()
 
 
