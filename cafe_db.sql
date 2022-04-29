@@ -38,10 +38,16 @@ CREATE TABLE `Reviews` (
     `ReviewsID` INT NOT NULL AUTO_INCREMENT ,
     `CustomerID` INT NOT NULL ,
     `ReviewsText` TEXT NOT NULL ,
+    `ReviewsDate` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (`CustomerID`) REFERENCES `Customers` (`CustomerID`),
     PRIMARY KEY (`ReviewsID`)) ENGINE = InnoDB;
 
-CREATE TABLE `Admin` ( `id` INT NOT NULL AUTO_INCREMENT , `FullName` VARCHAR(45) NOT NULL , `TelegramID` INT NOT NULL , `PhoneNumber` VARCHAR(45) NOT NULL , PRIMARY KEY (`id`)) ENGINE = InnoDB;
+CREATE TABLE `Admin` (
+    `id` INT NOT NULL AUTO_INCREMENT ,
+    `FullName` VARCHAR(45) NOT NULL ,
+    `TelegramID` INT NOT NULL ,
+    `PhoneNumber` VARCHAR(45) NOT NULL ,
+    PRIMARY KEY (`id`)) ENGINE = InnoDB;
 
 
 
