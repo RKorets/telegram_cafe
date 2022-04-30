@@ -23,7 +23,8 @@ get_keyboard = GetKeyboard()
 
 
 class Form(StatesGroup):
-      reviews = State()
+    reviews = State()
+
 
 @dp.message_handler(commands=['start'])
 async def start(message: types.message):
@@ -81,8 +82,12 @@ async def callbacks_num(call: types.CallbackQuery):
 
 @dp.message_handler(Text(startswith=['В кошику']))
 async def bag(message: types.Message):
-    bag = order.get_total(user_data.get(message.chat.id, 0))
-    await bot.send_message(message.chat.id, f'Ваше замовлення:\n {bag}', reply_markup=get_keyboard.create_order())
+    if user_data.get(message.chat.id, False):
+        basket = order.get_total(user_data.get(message.chat.id, 0))
+        await bot.send_message(message.chat.id, f'Ваше замовлення:\n {basket}',
+                               reply_markup=get_keyboard.create_order())
+    else:
+        await bot.send_message(message.chat.id, emojize(f'Кошик порожній:cry:', language='alias'))
 
 
 @dp.callback_query_handler(Text(startswith=["enter", "cancel"]))
@@ -90,7 +95,9 @@ async def create_order(call: types.CallbackQuery):
     if call.data == "enter":
         order_number = order.generate_number()
         message_info = f'Ваш номер замовлення №{order_number}\nБажаєте ще щось?'
-        text = emojize(f'Ваше замовлення №{order_number} прийняте:white_check_mark:\nОчікуйте повідомлення про готовність:speech_balloon:', language='alias')
+        text = emojize(
+            f'Ваше замовлення №{order_number} прийняте:white_check_mark:\nОчікуйте повідомлення про готовність:speech_balloon:',
+            language='alias')
         order.db_create_order(order_number, call.from_user.id, user_data.get(call.from_user.id, 0))
         get_keyboard.clear_bag(call.from_user.id)
         user_data[call.from_user.id].clear()
@@ -101,14 +108,15 @@ async def create_order(call: types.CallbackQuery):
         message_info = 'Замовлення скасоване:x:'
     await bot.answer_callback_query(call.id, text=text, show_alert=True)
     await call.message.edit_reply_markup(reply_markup=get_keyboard.hide_bag_buttons())
-    await call.message.answer(emojize(message_info, language='alias'), reply_markup=get_keyboard.menu_keyboard(call.from_user.id))
+    await call.message.answer(emojize(message_info, language='alias'),
+                              reply_markup=get_keyboard.menu_keyboard(call.from_user.id))
     await call.answer()
 
 
 @dp.callback_query_handler(Text(startswith=["pass"]))
 async def pass_message(call: types.CallbackQuery):
-    message_info = "Кошик вже порожній:("
-    await call.message.answer(emojize(message_info, language='alias'))
+    message_info = emojize(f'Кошик порожній:cry:', language='alias')
+    await call.message.answer(message_info)
     await call.answer()
 
 
@@ -139,17 +147,24 @@ async def process_name(message: types.Message, state: FSMContext):
     await state.finish()
 
 
+def auth(func):
+    async def wrapper(message):
+        db = DBConnect()
+        if db.admin(message.chat.id):
+            return await func(message)
+        return print("Incorrect auth")
+    return wrapper
+
+
 @dp.message_handler(commands=['admin'])
+@auth
 async def admin_menu(message: types.message):
-    db = DBConnect()
-    if db.admin(message.chat.id):
-        caption = 'Вітаю в панелі адміністратора!'
-        await bot.send_message(message.chat.id, caption, reply_markup=get_keyboard.admin_keyboard())
-    else:
-        pass
+    caption = 'Вітаю в панелі адміністратора!'
+    await bot.send_message(message.chat.id, caption, reply_markup=get_keyboard.admin_keyboard())
 
 
-@dp.message_handler(Text(startswith=['Нові замовлення>']))
+@dp.message_handler(Text(startswith=['Нові замовлення']))
+@auth
 async def admin_orders(message: types.Message):
     db = DBConnect()
     all_new_orders = db.take_new_orders()
@@ -170,7 +185,7 @@ async def admin_orders(message: types.Message):
 @dp.callback_query_handler(Text(startswith=["confirm", "delete"]))
 async def admin_order_status(call: types.CallbackQuery):
     db = DBConnect()
-    order_number = int(call.message.text[len(call.message.text)-12:])
+    order_number = int(call.message.text[len(call.message.text) - 12:])
     if call.data == "confirm":
         db.edit_status(order_number, "confirm")
         user = db.take_user_id(order_number)
@@ -182,6 +197,7 @@ async def admin_order_status(call: types.CallbackQuery):
 
 
 @dp.message_handler(Text(startswith=['Статистика за день']))
+@auth
 async def admin_statistic(message: types.Message):
     db = DBConnect()
     all_new_orders = db.take_statistics()
