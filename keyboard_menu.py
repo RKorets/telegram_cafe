@@ -88,7 +88,7 @@ class GetKeyboard:
 
     @staticmethod
     def admin_keyboard():
-        buttons = [emojize('Нові замовлення>:bell:', language='alias'),
+        buttons = [emojize('Нові замовлення:bell:', language='alias'),
                    emojize('Статистика за день:bar_chart:', language='alias')]
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
         keyboard.add(*buttons)
