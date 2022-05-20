@@ -31,7 +31,9 @@ async def start(message: types.message):
     db = DBConnect()
     db.create_customers(message.from_user)
     caption = emojize(
-        'Вас вітає Cafe YumYum :heart: \nОберіть потрібний пункт меню:mag_right:\nСподіваємся Вам в нас сподобається, бажаєм гарно провести час!:blush:',
+        'Вас вітає Cafe YumYum :heart: \n'
+        'Оберіть потрібний пункт меню:mag_right:\n'
+        'Сподіваємся Вам в нас сподобається, бажаєм гарно провести час!:blush:',
         language='alias')
     await bot.send_photo(message.chat.id, caption=caption, photo=open('images/cafe_logo.png', 'rb'),
                          reply_markup=get_keyboard.main_menu_keyboard())
@@ -96,7 +98,8 @@ async def create_order(call: types.CallbackQuery):
         order_number = order.generate_number()
         message_info = f'Ваш номер замовлення №{order_number}\nБажаєте ще щось?'
         text = emojize(
-            f'Ваше замовлення №{order_number} прийняте:white_check_mark:\nОчікуйте повідомлення про готовність:speech_balloon:',
+            f'Ваше замовлення №{order_number} прийняте:white_check_mark:\n'
+            'Очікуйте повідомлення про готовність:speech_balloon:',
             language='alias')
         order.db_create_order(order_number, call.from_user.id, user_data.get(call.from_user.id, 0))
         get_keyboard.clear_bag(call.from_user.id)
@@ -140,7 +143,7 @@ async def about(message: types.Message):
 @dp.message_handler(state=Form.reviews)
 async def process_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data['reviews'] = message.text
+        data['reviews'] = message.text.encode('ascii', 'ignore').decode('ascii')
     db = DBConnect()
     db.create_reviews(message.chat.id, md.text(data['reviews']))
     await message.reply("Дякуєм за Ваш відгук!", reply_markup=get_keyboard.main_menu_keyboard())
