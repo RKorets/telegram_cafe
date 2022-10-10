@@ -14,7 +14,7 @@ import time
 
 logging.basicConfig(level=logging.INFO)
 storage = MemoryStorage()
-bot = Bot('5397776041:AAF0n0GYOqe0rLIL5G4tLbX0f2RDbiQ1xmU')
+bot = Bot('TOKEN')
 dp = Dispatcher(bot=bot, storage=storage)
 
 user_data = defaultdict(list)
